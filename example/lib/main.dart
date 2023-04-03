@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:media_controller/media_controller.dart';
 
@@ -14,12 +16,70 @@ class MyApp extends StatefulWidget {
 
 class _MyAppState extends State<MyApp> {
   final _mediaControllerPlugin = MediaController();
+  StreamSubscription<Map<String, dynamic>>? _subscription;
   List<String> sessions = [];
   String? currentToken;
+  String? currentPlaybackState;
 
   @override
   void initState() {
     super.initState();
+  }
+
+  void startListening() {
+    try {
+      _subscription = _mediaControllerPlugin.mediaStream?.listen((data) {
+        data.forEach((key, value) {
+          switch (key) {
+            case "sessions":
+              {
+                if (value != null) {
+                  List<Object?> objectList = value;
+                  List<String> stringList =
+                      objectList.map((obj) => obj?.toString() ?? '').toList();
+                  setState(() {
+                    sessions = stringList;
+                  });
+                  print("sessions = $sessions");
+                  if (sessions.isNotEmpty) {
+                    setSession(sessions.first);
+                  }
+                }
+              }
+              break;
+            case "PlaybackState":
+              {
+                if (value != null) {
+                  setState(() {
+                    currentPlaybackState = value;
+                  });
+                  print("PlaybackState = $currentPlaybackState");
+                }
+              }
+              break;
+            default:
+              break;
+          }
+        });
+      });
+      if (_subscription != null) {
+        setState(() {
+          print('start listening');
+        });
+      }
+    } on Exception catch (exception) {
+      print(exception);
+    }
+  }
+
+  void stopListening() {
+    if (_subscription != null) {
+      setState(() {
+        _subscription?.cancel();
+        _subscription = null;
+        print('stop listening');
+      });
+    }
   }
 
   Widget sessionList(List<String> stringList) {
@@ -45,7 +105,7 @@ class _MyAppState extends State<MyApp> {
     }
     currentToken = await _mediaControllerPlugin.setCurrentMediaSession(token);
     setState(() {
-      print(currentToken);
+      print("setSession => $currentToken");
     });
   }
 
@@ -63,14 +123,20 @@ class _MyAppState extends State<MyApp> {
               IconButton(
                 icon: const Icon(Icons.queue_music),
                 onPressed: () async {
-                  await setSession(sessions.first);
+                  if (_subscription == null) {
+                    startListening();
+                  } else {
+                    stopListening();
+                  }
                 },
               ),
               SizedBox(height: 100, child: sessionList(sessions)),
               IconButton(
                 icon: const Icon(Icons.check),
                 onPressed: () async {
-                  await setSession(sessions.first);
+                  if (sessions.isNotEmpty) {
+                    await setSession(sessions.first);
+                  }
                 },
               ),
               Text(currentToken ?? "No token"),

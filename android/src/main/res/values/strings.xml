@@ -1,4 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">Media Controller Plugin</string>
+
+    <string name="info_state_string">PlaybackState</string>
+    <string name="info_title_string">Title</string>
+    <string name="info_artist_string">Artist</string>
+    <string name="info_album_string">Album</string>
 </resources>

@@ -37,6 +37,10 @@ class MockMediaControllerPlatform
     // TODO: implement setCurrentMediaSession
     throw UnimplementedError();
   }
+
+  @override
+  // TODO: implement mediaSessionStream
+  Stream<Map<String, dynamic>>? get mediaStream => throw UnimplementedError();
 }
 
 void main() {

@@ -43,4 +43,6 @@ abstract class MediaControllerPlatform extends PlatformInterface {
   Future<void> stop() {
     throw UnimplementedError('stop() has not been implemented.');
   }
+
+  Stream<Map<String, dynamic>>? get mediaStream;
 }
