@@ -12,6 +12,7 @@ import android.media.session.PlaybackState
 import android.os.Build
 import android.os.RemoteException
 import android.provider.Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS
+import android.text.TextUtils
 import android.util.Log
 import androidx.annotation.NonNull
 import androidx.annotation.RequiresApi
@@ -42,7 +43,6 @@ class MediaControllerPlugin : FlutterPlugin, MethodCallHandler, EventChannel.Str
     private lateinit var mediaSessionManager: MediaSessionManager
     private var currentMediaSession: MediaController? = null
     private var activeSessions: List<MediaController>? = null
-    private lateinit var mCallback: MediaControllerCallback
 
     private val mMediaSessionListener =
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) MediaSessionListener() else null
@@ -62,12 +62,17 @@ class MediaControllerPlugin : FlutterPlugin, MethodCallHandler, EventChannel.Str
         eventChannel.setStreamHandler(this)
 //        mediaSessionManager =
 //            getSystemService(mContext!!, MediaSessionManager::class.java) as MediaSessionManager
-        mCallback = MediaControllerCallback()
         mMediaSessionListener?.onCreate(mContext!!)
     }
 
+    private fun addMediaInfo(mediaInfos: MutableMap<String, Any>, key: String, value: String?) {
+        if (value != null && !TextUtils.isEmpty(value)) {
+            mediaInfos[key] = value
+        }
+    }
+
     @RequiresApi(Build.VERSION_CODES.LOLLIPOP)
-    private fun fetchMediaInfo(mController: MediaController): MutableMap<String, Any>? {
+    private fun fetchPlayState(mController: MediaController): MutableMap<String, Any>? {
         if (mController == null) {
             Log.e(
                 TAG,
@@ -83,12 +88,39 @@ class MediaControllerPlugin : FlutterPlugin, MethodCallHandler, EventChannel.Str
             )
             return null
         }
-        val mediaInfos: MutableMap<String, Any> = HashMap()
-        mediaInfos["PlaybackState"] =
+        val data: MutableMap<String, Any> = HashMap()
+        data["PlaybackState"] =
             playbackStateToName(playbackState.state)
+        return data
+    }
 
+    @RequiresApi(Build.VERSION_CODES.LOLLIPOP)
+    private fun fetchMediaInfo(mController: MediaController): MutableMap<String, Any>? {
+        if (mController == null) {
+            Log.e(
+                TAG,
+                "Failed to update media info, null MediaController."
+            )
+            return null
+        }
+        val mediaInfos: MutableMap<String, Any> = HashMap()
         val mediaMetadata: MediaMetadata? = mController.metadata
         if (mediaMetadata != null) {
+            addMediaInfo(
+                mediaInfos,
+                "Title",
+                mediaMetadata.getString(MediaMetadata.METADATA_KEY_TITLE)
+            )
+            addMediaInfo(
+                mediaInfos,
+                "Artist",
+                mediaMetadata.getString(MediaMetadata.METADATA_KEY_ARTIST)
+            )
+            addMediaInfo(
+                mediaInfos,
+                "Album",
+                mediaMetadata.getString(MediaMetadata.METADATA_KEY_ALBUM)
+            )
 
         }
         return mediaInfos
@@ -171,11 +203,23 @@ class MediaControllerPlugin : FlutterPlugin, MethodCallHandler, EventChannel.Str
 //                        }
 //                    }
 //                }
-                if (mMediaSessionListener != null) {
-                    currentMediaSession = mMediaSessionListener.getMediaSessionByToken(token)
-                    setupMediaController(currentMediaSession!!)
+                mMediaSessionListener?.let {
+                    currentMediaSession?.unregisterCallback(mCallback)
+                    currentMediaSession = it.getMediaSessionByToken(token)
+                    if (currentMediaSession != null) {
+                        setupMediaController(currentMediaSession!!)
+                    }
                     resultString = currentMediaSession?.sessionToken.toString()
                 }
+//                if (currentMediaSession?.sessionToken.toString() != token) {
+//                    mMediaSessionListener?.let {
+//                        currentMediaSession = it.getMediaSessionByToken(token)
+//
+//                        setupMediaController(currentMediaSession!!)
+//                        resultString = currentMediaSession?.sessionToken.toString()
+//                    }
+//                }
+
                 result.success(resultString)
             }
             else -> {
@@ -208,22 +252,36 @@ class MediaControllerPlugin : FlutterPlugin, MethodCallHandler, EventChannel.Str
     }
 
     @RequiresApi(Build.VERSION_CODES.LOLLIPOP)
-    private inner class MediaControllerCallback : MediaController.Callback() {
+    val mCallback: MediaController.Callback = object : MediaController.Callback() {
         override fun onPlaybackStateChanged(playbackState: PlaybackState?) {
-            onUpdate()
             if (playbackState != null) {
+                onUpdatePlayState()
             }
         }
 
         override fun onMetadataChanged(metadata: MediaMetadata?) {
-            onUpdate()
+            onUpdateMediaInfo()
         }
+
         override fun onSessionDestroyed() {
             super.onSessionDestroyed()
             currentMediaSession = null
+            Log.d(
+                TAG,
+                "MediaSession has been released",
+            )
         }
 
-        private fun onUpdate() {
+        private fun onUpdatePlayState() {
+            val playState: MutableMap<String, Any>? = fetchPlayState(currentMediaSession!!)
+            if (playState != null) {
+                mMediaSessionListener?.mEventSink?.let {
+                    it.success(playState)
+                }
+            }
+        }
+
+        private fun onUpdateMediaInfo() {
             val mediaInfo: MutableMap<String, Any>? = fetchMediaInfo(currentMediaSession!!)
             if (mediaInfo != null) {
                 mMediaSessionListener?.mEventSink?.let {
@@ -245,26 +303,21 @@ class MediaControllerPlugin : FlutterPlugin, MethodCallHandler, EventChannel.Str
     }
 
     override fun onDetachedFromActivityForConfigChanges() {
-        TODO("Not yet implemented")
     }
 
     override fun onReattachedToActivityForConfigChanges(binding: ActivityPluginBinding) {
-        TODO("Not yet implemented")
     }
 
     override fun onDetachedFromActivity() {
-        TODO("Not yet implemented")
     }
 
     @TargetApi(Build.VERSION_CODES.LOLLIPOP)
     private class MediaSessionListener {
         var mEventSink: EventChannel.EventSink? = null
-
         var activeSessions: List<MediaController>? = null
         private val mSessionsChangedListener =
             MediaSessionManager.OnActiveSessionsChangedListener { list: List<MediaController?>? ->
                 activeSessions = list as List<MediaController>?
-
                 // send stream to flutter
                 mEventSink?.let {
                     val sessionTokens = mutableListOf<String>()

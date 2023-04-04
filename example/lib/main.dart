@@ -19,6 +19,7 @@ class _MyAppState extends State<MyApp> {
   StreamSubscription<Map<String, dynamic>>? _subscription;
   List<String> sessions = [];
   String? currentToken;
+  String? currentTitle;
   String? currentPlaybackState;
 
   @override
@@ -44,6 +45,16 @@ class _MyAppState extends State<MyApp> {
                   if (sessions.isNotEmpty) {
                     setSession(sessions.first);
                   }
+                }
+              }
+              break;
+            case "Title":
+              {
+                if (value != null) {
+                  setState(() {
+                    currentTitle = value;
+                  });
+                  print("currentTitle = $currentTitle");
                 }
               }
               break;
@@ -97,16 +108,20 @@ class _MyAppState extends State<MyApp> {
   }
 
   Future<void> setSession(String? token) async {
-    if (token == null) {
+    if (token == null || token!.isEmpty ) {
       return;
     }
     if (sessions.isEmpty) {
       return;
     }
-    currentToken = await _mediaControllerPlugin.setCurrentMediaSession(token);
-    setState(() {
-      print("setSession => $currentToken");
-    });
+    final returnToken = await _mediaControllerPlugin.setCurrentMediaSession(token);
+    if (returnToken != null) {
+      currentToken = returnToken;
+      setState(() {
+        print("setSession => $currentToken");
+      });
+    }
+
   }
 
   @override
@@ -140,6 +155,8 @@ class _MyAppState extends State<MyApp> {
                 },
               ),
               Text(currentToken ?? "No token"),
+              Text(currentTitle ?? "No Title"),
+              Text(currentPlaybackState ?? "No PlaybackState"),
               IconButton(
                 icon: const Icon(Icons.play_arrow),
                 onPressed: () {
