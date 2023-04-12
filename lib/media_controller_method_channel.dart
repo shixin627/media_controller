@@ -47,6 +47,16 @@ class MethodChannelMediaController extends MediaControllerPlatform {
     await methodChannel.invokeMethod<void>('stop');
   }
 
+  @override
+  Future<void> previous() async {
+    await methodChannel.invokeMethod<void>('previous');
+  }
+
+  @override
+  Future<void> next() async {
+    await methodChannel.invokeMethod<void>('next');
+  }
+
   Map<String, dynamic> convertMap(dynamic data) {
     return Map<String, dynamic>.from(data as Map<dynamic, dynamic>).cast<String, dynamic>();
   }

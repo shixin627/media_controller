@@ -175,6 +175,14 @@ class MediaControllerPlugin : FlutterPlugin, MethodCallHandler, EventChannel.Str
                 stop()
                 result.success(null)
             }
+            "previous" -> {
+                previous()
+                result.success(null)
+            }
+            "next" -> {
+                next()
+                result.success(null)
+            }
             "getActiveMediaSessions" -> {
 //                activeSessions = mediaSessionManager.getActiveSessions(
 //                    ComponentName(
@@ -250,6 +258,17 @@ class MediaControllerPlugin : FlutterPlugin, MethodCallHandler, EventChannel.Str
             currentMediaSession?.transportControls?.stop()
         }
     }
+    private fun previous() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+            currentMediaSession?.transportControls?.skipToPrevious()
+        }
+    }
+
+    private fun next() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+            currentMediaSession?.transportControls?.skipToNext()
+        }
+    }
 
     @RequiresApi(Build.VERSION_CODES.LOLLIPOP)
     val mCallback: MediaController.Callback = object : MediaController.Callback() {
@@ -299,7 +318,7 @@ class MediaControllerPlugin : FlutterPlugin, MethodCallHandler, EventChannel.Str
     }
 
     override fun onAttachedToActivity(binding: ActivityPluginBinding) {
-        handleNotificationPermissions(binding.activity)
+//        handleNotificationPermissions(binding.activity)
     }
 
     override fun onDetachedFromActivityForConfigChanges() {

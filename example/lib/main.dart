@@ -175,6 +175,18 @@ class _MyAppState extends State<MyApp> {
                   _mediaControllerPlugin.stop();
                 },
               ),
+              IconButton(
+                icon: const Icon(Icons.skip_previous),
+                onPressed: () {
+                  _mediaControllerPlugin.previous();
+                },
+              ),
+              IconButton(
+                icon: const Icon(Icons.skip_next),
+                onPressed: () {
+                  _mediaControllerPlugin.next();
+                },
+              ),
             ],
           ),
         ),

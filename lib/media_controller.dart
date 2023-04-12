@@ -22,6 +22,14 @@ class MediaController {
     return MediaControllerPlatform.instance.stop();
   }
 
+  Future<void> previous() {
+    return MediaControllerPlatform.instance.previous();
+  }
+
+  Future<void> next() {
+    return MediaControllerPlatform.instance.next();
+  }
+
   Stream<Map<String, dynamic>>? get mediaStream =>
       MediaControllerPlatform.instance.mediaStream;
 }

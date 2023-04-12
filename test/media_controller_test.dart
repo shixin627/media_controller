@@ -27,6 +27,18 @@ class MockMediaControllerPlatform
   }
 
   @override
+  Future<void> previous() {
+    // TODO: implement previous
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<void> next() {
+    // TODO: implement next
+    throw UnimplementedError();
+  }
+
+  @override
   Future<List<String>> getActiveMediaSessions() {
     // TODO: implement getActiveMediaSessions
     throw UnimplementedError();
