@@ -396,11 +396,19 @@ class MediaControllerPlugin : FlutterPlugin, MethodCallHandler, EventChannel.Str
     }
 
     override fun onListen(arguments: Any?, events: EventChannel.EventSink?) {
+//        Log.d(
+//            TAG,
+//            "MediaSession onListen",
+//        )
         mMediaSessionListener?.onStart(mContext!!, events!!)
 
     }
 
     override fun onCancel(arguments: Any?) {
+//        Log.d(
+//            TAG,
+//            "MediaSession onCancel",
+//        )
         mMediaSessionListener?.onStop()
     }
 }
