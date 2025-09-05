@@ -319,7 +319,7 @@ class MediaControllerPlugin : FlutterPlugin, MethodCallHandler, EventChannel.Str
         var mEventSink: EventChannel.EventSink? = null
         var activeSessions: List<MediaController>? = null
 
-        fun sendSessionsInfoToFlutter(sessions: List<MediaController>?, notifySessionsOnly: Boolean = false) {
+        fun sendSessionsInfoToFlutter(sessions: List<MediaController>?, notifyChanged: Boolean = false) {
             mEventSink?.let {
                 val sessionTokens = mutableListOf<String>()
                 val sessionPackages = mutableListOf<String>()
@@ -338,9 +338,10 @@ class MediaControllerPlugin : FlutterPlugin, MethodCallHandler, EventChannel.Str
                 }
                 val sessionsInfo: MutableMap<String, Any> = HashMap()
 
-                if (notifySessionsOnly) {
-                    sessionsInfo["sessions"] = sessionTokens
+                if (notifyChanged) {
+                    sessionsInfo["notifyChanged"] = true
                 } else {
+                    sessionsInfo["sessions"] = sessionTokens
                     sessionsInfo["packages"] = sessionPackages
                     sessionsInfo["states"] = sessionStates
                 }
