@@ -91,6 +91,7 @@ class MediaControllerPlugin : FlutterPlugin, MethodCallHandler, EventChannel.Str
         val data: MutableMap<String, Any> = HashMap()
         data["PlaybackState"] =
             playbackStateToName(playbackState.state)
+        data["Package"] = mController.packageName
         return data
     }
 
