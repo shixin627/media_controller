@@ -342,15 +342,18 @@ class MediaControllerPlugin : FlutterPlugin, MethodCallHandler, EventChannel.Str
                 mEventSink?.let {
                     val sessionTokens = mutableListOf<String>()
                     val sessionPackages = mutableListOf<String>()
+                    val sessionStates = mutableListOf<String>()
                     if (activeSessions != null) {
                         for (session in activeSessions as MutableList<MediaController>) {
                             sessionTokens += session.sessionToken.toString()
                             sessionPackages += session.packageName.toString()
+                            sessionStates += playbackStateToName(session.playbackState.state)
                         }
                     }
                     val sessionsInfo: MutableMap<String, Any> = HashMap()
                     sessionsInfo["sessions"] = sessionTokens
                     sessionsInfo["packages"] = sessionPackages
+                    sessionsInfo["states"] = sessionStates
                     it.success(sessionsInfo)
                 }
 
