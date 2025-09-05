@@ -58,7 +58,6 @@ class MediaControllerPlugin : FlutterPlugin, MethodCallHandler, EventChannel.Str
     private lateinit var methodChannel: MethodChannel
     private lateinit var eventChannel: EventChannel
     private var mContext: Context? = null
-    private lateinit var mediaSessionManager: MediaSessionManager
     private var currentMediaSession: MediaController? = null
     private var activeSessions: List<MediaController>? = null
 
@@ -78,8 +77,6 @@ class MediaControllerPlugin : FlutterPlugin, MethodCallHandler, EventChannel.Str
             EVENT_CHANNEL_NAME
         )
         eventChannel.setStreamHandler(this)
-//        mediaSessionManager =
-//            getSystemService(mContext!!, MediaSessionManager::class.java) as MediaSessionManager
         mMediaSessionListener?.onCreate(mContext!!)
     }
 
@@ -186,12 +183,7 @@ class MediaControllerPlugin : FlutterPlugin, MethodCallHandler, EventChannel.Str
                 result.success(null)
             }
             "getActiveMediaSessions" -> {
-                activeSessions = mediaSessionManager.getActiveSessions(
-                    ComponentName(
-                        mContext!!,
-                        NotificationListener::class.java
-                    )
-                )
+                activeSessions = mMediaSessionListener?.getActiveSessions(mContext!!)
                 mMediaSessionListener?.activeSessions = activeSessions
                 mMediaSessionListener?.sendSessionsInfoToFlutter(activeSessions)
                 result.success(null)
@@ -200,15 +192,6 @@ class MediaControllerPlugin : FlutterPlugin, MethodCallHandler, EventChannel.Str
                 val arguments = call.arguments
                 val token = (arguments as Map<*, *>)["sessionToken"] as String
                 var resultString: String? = null
-//                if (activeSessions != null) {
-//                    for (session in activeSessions!!) {
-//                        if (session.sessionToken.toString() == token) {
-//                            currentMediaSession = session
-//                            resultString = session.sessionToken.toString()
-//
-//                        }
-//                    }
-//                }
                 mMediaSessionListener?.let {
                     currentMediaSession?.unregisterCallback(mCallback)
                     currentMediaSession = it.getMediaSessionByToken(token)
@@ -367,6 +350,16 @@ class MediaControllerPlugin : FlutterPlugin, MethodCallHandler, EventChannel.Str
                 sendSessionsInfoToFlutter(activeSessions, true)
             }
         private var mMediaSessionManager: MediaSessionManager? = null
+
+        fun getActiveSessions(context: Context): List<MediaController>? {
+            mMediaSessionManager!!.getActiveSessions(
+                ComponentName(
+                    context,
+                    NotificationListener::class.java
+                )
+            )
+            return activeSessions
+        }
 
         fun getMediaSessionByToken(token: String): MediaController? {
             if (activeSessions != null) {
