@@ -206,15 +206,11 @@ class MediaControllerPlugin : FlutterPlugin, MethodCallHandler, EventChannel.Str
                         setupMediaController(currentMediaSession!!)
                     }
                     resultString = currentMediaSession?.sessionToken.toString()
+                    val playState: MutableMap<String, Any>? = fetchPlayState(currentMediaSession!!)
+                    if (playState != null) {
+                        it.mEventSink!!.success(playState)
+                    }
                 }
-//                if (currentMediaSession?.sessionToken.toString() != token) {
-//                    mMediaSessionListener?.let {
-//                        currentMediaSession = it.getMediaSessionByToken(token)
-//
-//                        setupMediaController(currentMediaSession!!)
-//                        resultString = currentMediaSession?.sessionToken.toString()
-//                    }
-//                }
 
                 result.success(resultString)
             }
