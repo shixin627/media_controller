@@ -106,7 +106,13 @@ class MediaControllerPlugin : FlutterPlugin, MethodCallHandler, EventChannel.Str
         val data: MutableMap<String, Any> = HashMap()
         data["PlaybackState"] =
             playbackStateToName(playbackState.state)
-        data["Title"] = mController.metadata.getString(MediaMetadata.METADATA_KEY_TITLE)
+        val metadata = mController.metadata
+        if (metadata != null) {
+            val title = metadata.getString(MediaMetadata.METADATA_KEY_TITLE)
+            if (title != null) {
+                data["Title"] = title
+            }
+        }
         data["Package"] = mController.packageName
         return data
     }
@@ -353,13 +359,12 @@ class MediaControllerPlugin : FlutterPlugin, MethodCallHandler, EventChannel.Str
         private var mMediaSessionManager: MediaSessionManager? = null
 
         fun getActiveSessions(context: Context): List<MediaController>? {
-            mMediaSessionManager!!.getActiveSessions(
+            return mMediaSessionManager!!.getActiveSessions(
                 ComponentName(
                     context,
                     NotificationListener::class.java
                 )
             )
-            return activeSessions
         }
 
         fun getMediaSessionByToken(token: String): MediaController? {
