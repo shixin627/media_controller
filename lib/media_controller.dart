@@ -5,7 +5,7 @@ class MediaController {
     return MediaControllerPlatform.instance.getActiveMediaSessions();
   }
 
-  Future<String?> setCurrentMediaSession(String sessionToken) async {
+  Future<String?> setCurrentMediaSession(String? sessionToken) async {
     return MediaControllerPlatform.instance
         .setCurrentMediaSession(sessionToken);
   }

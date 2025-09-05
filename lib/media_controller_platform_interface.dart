@@ -27,7 +27,7 @@ abstract class MediaControllerPlatform extends PlatformInterface {
     throw UnimplementedError('getActiveMediaSessions() has not been implemented.');
   }
 
-  Future<String?> setCurrentMediaSession(String sessionToken) {
+  Future<String?> setCurrentMediaSession(String? sessionToken) {
     throw UnimplementedError(
         'setCurrentMediaSession() has not been implemented.');
   }

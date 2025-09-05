@@ -26,7 +26,7 @@ class MethodChannelMediaController extends MediaControllerPlatform {
   }
 
   @override
-  Future<String?> setCurrentMediaSession(String sessionToken) async {
+  Future<String?> setCurrentMediaSession(String? sessionToken) async {
     final data = {"sessionToken": sessionToken};
     return await methodChannel.invokeMethod<String>(
         'setCurrentMediaSession', data);

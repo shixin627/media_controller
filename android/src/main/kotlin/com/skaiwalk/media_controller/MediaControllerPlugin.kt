@@ -197,22 +197,30 @@ class MediaControllerPlugin : FlutterPlugin, MethodCallHandler, EventChannel.Str
             }
             "setCurrentMediaSession" -> {
                 val arguments = call.arguments
-                val token = (arguments as Map<*, *>)["sessionToken"] as String
-                var resultString: String? = null
-                mMediaSessionListener?.let {
+                val token = (arguments as Map<*, *>)["sessionToken"]
+                if (token == null) {
                     currentMediaSession?.unregisterCallback(mCallback)
-                    currentMediaSession = it.getMediaSessionByToken(token)
-                    if (currentMediaSession != null) {
-                        setupMediaController(currentMediaSession!!)
+                    currentMediaSession = null
+                    result.success(null)
+                } else {
+                    var resultString: String? = null
+                    mMediaSessionListener?.let {
+                        currentMediaSession?.unregisterCallback(mCallback)
+                        currentMediaSession = it.getMediaSessionByToken(token as String)
+                        if (currentMediaSession != null) {
+                            setupMediaController(currentMediaSession!!)
+                        }
+                        resultString = currentMediaSession?.sessionToken.toString()
+                        currentMediaSession?.let { session ->
+                            val playState: MutableMap<String, Any>? = fetchPlayState(session)
+                            if (playState != null) {
+                                it.mEventSink?.success(playState)
+                            }
+                        }
                     }
-                    resultString = currentMediaSession?.sessionToken.toString()
-                    val playState: MutableMap<String, Any>? = fetchPlayState(currentMediaSession!!)
-                    if (playState != null) {
-                        it.mEventSink!!.success(playState)
-                    }
-                }
 
-                result.success(resultString)
+                    result.success(resultString)
+                }
             }
             else -> {
                 result.notImplemented()
