@@ -41,7 +41,7 @@ class _MyAppState extends State<MyApp> {
                   setState(() {
                     sessions = stringList;
                   });
-                  print("sessions = $sessions");
+                  debugPrint("sessions = $sessions");
                   if (sessions.isNotEmpty) {
                     setSession(sessions.first);
                   }
@@ -54,7 +54,7 @@ class _MyAppState extends State<MyApp> {
                   setState(() {
                     currentTitle = value;
                   });
-                  print("currentTitle = $currentTitle");
+                  debugPrint("currentTitle = $currentTitle");
                 }
               }
               break;
@@ -64,7 +64,7 @@ class _MyAppState extends State<MyApp> {
                   setState(() {
                     currentPlaybackState = value;
                   });
-                  print("PlaybackState = $currentPlaybackState");
+                  debugPrint("PlaybackState = $currentPlaybackState");
                 }
               }
               break;
@@ -74,12 +74,10 @@ class _MyAppState extends State<MyApp> {
         });
       });
       if (_subscription != null) {
-        setState(() {
-          print('start listening');
-        });
+        debugPrint('start listening');
       }
     } on Exception catch (exception) {
-      print(exception);
+      debugPrint(exception.toString());
     }
   }
 
@@ -88,7 +86,7 @@ class _MyAppState extends State<MyApp> {
       setState(() {
         _subscription?.cancel();
         _subscription = null;
-        print('stop listening');
+        debugPrint('stop listening');
       });
     }
   }
@@ -108,7 +106,7 @@ class _MyAppState extends State<MyApp> {
   }
 
   Future<void> setSession(String? token) async {
-    if (token == null || token!.isEmpty ) {
+    if (token == null || token.isEmpty) {
       return;
     }
     if (sessions.isEmpty) {
@@ -117,9 +115,7 @@ class _MyAppState extends State<MyApp> {
     final returnToken = await _mediaControllerPlugin.setCurrentMediaSession(token);
     if (returnToken != null) {
       currentToken = returnToken;
-      setState(() {
-        print("setSession => $currentToken");
-      });
+      debugPrint("setSession => $currentToken");
     }
 
   }

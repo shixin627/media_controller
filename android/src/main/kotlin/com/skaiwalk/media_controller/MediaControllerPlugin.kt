@@ -340,13 +340,16 @@ class MediaControllerPlugin : FlutterPlugin, MethodCallHandler, EventChannel.Str
                 // send stream to flutter
                 mEventSink?.let {
                     val sessionTokens = mutableListOf<String>()
+                    val sessionPackages = mutableListOf<String>()
                     if (activeSessions != null) {
                         for (session in activeSessions as MutableList<MediaController>) {
                             sessionTokens += session.sessionToken.toString()
+                            sessionPackages += session.packageName.toString()
                         }
                     }
                     val sessionsInfo: MutableMap<String, Any> = HashMap()
                     sessionsInfo["sessions"] = sessionTokens
+                    sessionsInfo["packages"] = sessionPackages
                     it.success(sessionsInfo)
                 }
 
