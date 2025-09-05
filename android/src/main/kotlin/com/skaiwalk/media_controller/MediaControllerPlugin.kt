@@ -186,19 +186,15 @@ class MediaControllerPlugin : FlutterPlugin, MethodCallHandler, EventChannel.Str
                 result.success(null)
             }
             "getActiveMediaSessions" -> {
-//                activeSessions = mediaSessionManager.getActiveSessions(
-//                    ComponentName(
-//                        mContext!!,
-//                        NotificationListener::class.java
-//                    )
-//                )
-//                val sessionTokens = mutableListOf<String>()
-//                if (activeSessions != null) {
-//                    for (session in activeSessions as MutableList<MediaController>) {
-//                        sessionTokens += session.sessionToken.toString()
-//                    }
-//                }
-//                result.success(sessionTokens)
+                activeSessions = mediaSessionManager.getActiveSessions(
+                    ComponentName(
+                        mContext!!,
+                        NotificationListener::class.java
+                    )
+                )
+                mMediaSessionListener?.activeSessions = activeSessions
+                mMediaSessionListener?.sendSessionsInfoToFlutter(activeSessions)
+                result.success(null)
             }
             "setCurrentMediaSession" -> {
                 val arguments = call.arguments
@@ -336,33 +332,39 @@ class MediaControllerPlugin : FlutterPlugin, MethodCallHandler, EventChannel.Str
     private class MediaSessionListener {
         var mEventSink: EventChannel.EventSink? = null
         var activeSessions: List<MediaController>? = null
+
+        fun sendSessionsInfoToFlutter(sessions: List<MediaController>?, notifySessionsOnly: Boolean = false) {
+            mEventSink?.let {
+                val sessionTokens = mutableListOf<String>()
+                val sessionPackages = mutableListOf<String>()
+                val sessionStates = mutableListOf<String>()
+                if (sessions != null) {
+                    for (session in sessions) {
+                        sessionTokens += session.sessionToken.toString()
+                        sessionPackages += session.packageName.toString()
+                        val playbackState = session.playbackState
+                        sessionStates += if (playbackState != null) {
+                            MediaControllerPlugin.playbackStateToName(playbackState.state)
+                        } else {
+                            "STATE_NONE"
+                        }
+                    }
+                }
+                val sessionsInfo: MutableMap<String, Any> = HashMap()
+
+                if (notifySessionsOnly) {
+                    sessionsInfo["sessions"] = sessionTokens
+                } else {
+                    sessionsInfo["packages"] = sessionPackages
+                    sessionsInfo["states"] = sessionStates
+                }
+                it.success(sessionsInfo)
+            }
+        }
         private val mSessionsChangedListener =
             MediaSessionManager.OnActiveSessionsChangedListener { list: List<MediaController?>? ->
                 activeSessions = list as List<MediaController>?
-                // send stream to flutter
-                mEventSink?.let {
-                    val sessionTokens = mutableListOf<String>()
-                    val sessionPackages = mutableListOf<String>()
-                    val sessionStates = mutableListOf<String>()
-                    if (activeSessions != null) {
-                        for (session in activeSessions as MutableList<MediaController>) {
-                            sessionTokens += session.sessionToken.toString()
-                            sessionPackages += session.packageName.toString()
-                            val playbackState = session.playbackState
-                            sessionStates += if (playbackState != null) {
-                                MediaControllerPlugin.playbackStateToName(playbackState.state)
-                            } else {
-                                "STATE_NONE"
-                            }
-                        }
-                    }
-                    val sessionsInfo: MutableMap<String, Any> = HashMap()
-                    sessionsInfo["sessions"] = sessionTokens
-                    sessionsInfo["packages"] = sessionPackages
-                    sessionsInfo["states"] = sessionStates
-                    it.success(sessionsInfo)
-                }
-
+                sendSessionsInfoToFlutter(activeSessions, true)
             }
         private var mMediaSessionManager: MediaSessionManager? = null
 
