@@ -35,6 +35,24 @@ class MediaControllerPlugin : FlutterPlugin, MethodCallHandler, EventChannel.Str
         val TAG: String? = "MediaControllerPlugin"
         const val METHOD_CHANNEL_NAME = "flutter.io/media_controller/methodChannel"
         const val EVENT_CHANNEL_NAME = "flutter.io/media_controller/eventChannel"
+        
+        fun playbackStateToName(playbackState: Int): String {
+            return when (playbackState) {
+                PlaybackState.STATE_NONE -> "STATE_NONE"
+                PlaybackState.STATE_STOPPED -> "STATE_STOPPED"
+                PlaybackState.STATE_PAUSED -> "STATE_PAUSED"
+                PlaybackState.STATE_PLAYING -> "STATE_PLAYING"
+                PlaybackState.STATE_FAST_FORWARDING -> "STATE_FAST_FORWARDING"
+                PlaybackState.STATE_REWINDING -> "STATE_REWINDING"
+                PlaybackState.STATE_BUFFERING -> "STATE_BUFFERING"
+                PlaybackState.STATE_ERROR -> "STATE_ERROR"
+                PlaybackState.STATE_CONNECTING -> "STATE_CONNECTING"
+                PlaybackState.STATE_SKIPPING_TO_PREVIOUS -> "STATE_SKIPPING_TO_PREVIOUS"
+                PlaybackState.STATE_SKIPPING_TO_NEXT -> "STATE_SKIPPING_TO_NEXT"
+                PlaybackState.STATE_SKIPPING_TO_QUEUE_ITEM -> "STATE_SKIPPING_TO_QUEUE_ITEM"
+                else -> "!Unknown State!"
+            }
+        }
     }
 
     private lateinit var methodChannel: MethodChannel
@@ -127,23 +145,6 @@ class MediaControllerPlugin : FlutterPlugin, MethodCallHandler, EventChannel.Str
         return mediaInfos
     }
 
-    private fun playbackStateToName(playbackState: Int): String {
-        return when (playbackState) {
-            PlaybackState.STATE_NONE -> "STATE_NONE"
-            PlaybackState.STATE_STOPPED -> "STATE_STOPPED"
-            PlaybackState.STATE_PAUSED -> "STATE_PAUSED"
-            PlaybackState.STATE_PLAYING -> "STATE_PLAYING"
-            PlaybackState.STATE_FAST_FORWARDING -> "STATE_FAST_FORWARDING"
-            PlaybackState.STATE_REWINDING -> "STATE_REWINDING"
-            PlaybackState.STATE_BUFFERING -> "STATE_BUFFERING"
-            PlaybackState.STATE_ERROR -> "STATE_ERROR"
-            PlaybackState.STATE_CONNECTING -> "STATE_CONNECTING"
-            PlaybackState.STATE_SKIPPING_TO_PREVIOUS -> "STATE_SKIPPING_TO_PREVIOUS"
-            PlaybackState.STATE_SKIPPING_TO_NEXT -> "STATE_SKIPPING_TO_NEXT"
-            PlaybackState.STATE_SKIPPING_TO_QUEUE_ITEM -> "STATE_SKIPPING_TO_QUEUE_ITEM"
-            else -> "!Unknown State!"
-        }
-    }
 
     @RequiresApi(Build.VERSION_CODES.LOLLIPOP)
     private fun setupMediaController(mController: MediaController) {
@@ -347,7 +348,12 @@ class MediaControllerPlugin : FlutterPlugin, MethodCallHandler, EventChannel.Str
                         for (session in activeSessions as MutableList<MediaController>) {
                             sessionTokens += session.sessionToken.toString()
                             sessionPackages += session.packageName.toString()
-                            sessionStates += playbackStateToName(session.playbackState.state)
+                            val playbackState = session.playbackState
+                            sessionStates += if (playbackState != null) {
+                                MediaControllerPlugin.playbackStateToName(playbackState.state)
+                            } else {
+                                "STATE_NONE"
+                            }
                         }
                     }
                     val sessionsInfo: MutableMap<String, Any> = HashMap()
