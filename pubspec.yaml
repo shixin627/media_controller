@@ -1,7 +1,15 @@
 name: media_controller
-description: A new Flutter plugin for media controll.
+description: A Flutter plugin for controlling media sessions on Android devices. Allows apps to interact with active media sessions, control playback, and receive media state updates.
 version: 0.0.1
-homepage:
+homepage: https://github.com/shixin627/media_controller
+repository: https://github.com/shixin627/media_controller
+issue_tracker: https://github.com/shixin627/media_controller/issues
+topics:
+  - media
+  - audio
+  - playback
+  - android
+  - media-session
 
 environment:
   sdk: '>=2.19.6 <3.0.0'
