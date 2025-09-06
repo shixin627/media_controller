@@ -4,15 +4,16 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 
 import 'media_controller_platform_interface.dart';
+import 'src/platform/channel_constants.dart';
 
 /// An implementation of [MediaControllerPlatform] that uses method channels.
 class MethodChannelMediaController extends MediaControllerPlatform {
   /// The method channel used to interact with the native platform.
   @visibleForTesting
-  final methodChannel = const MethodChannel(
-      'flutter.io/media_controller/methodChannel');
-  final eventChannel = const EventChannel(
-      'flutter.io/media_controller/eventChannel');
+  final methodChannel = const MethodChannel(ChannelConstants.methodChannel);
+  
+  /// The event channel used to receive updates from the native platform.
+  final eventChannel = const EventChannel(ChannelConstants.eventChannel);
 
   @override
   Future<List<String>> getActiveMediaSessions() async {
