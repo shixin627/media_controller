@@ -35,6 +35,7 @@ class MediaControllerPlugin : FlutterPlugin, MethodCallHandler, EventChannel.Str
         val TAG: String? = "MediaControllerPlugin"
         const val METHOD_CHANNEL_NAME = "flutter.io/media_controller/methodChannel"
         const val EVENT_CHANNEL_NAME = "flutter.io/media_controller/eventChannel"
+        private const val DEBUG = true  // Set to false for release builds
         
         fun playbackStateToName(playbackState: Int): String {
             return when (playbackState) {
@@ -168,97 +169,199 @@ class MediaControllerPlugin : FlutterPlugin, MethodCallHandler, EventChannel.Str
 
     @RequiresApi(Build.VERSION_CODES.LOLLIPOP)
     override fun onMethodCall(@NonNull call: MethodCall, @NonNull result: Result) {
-        when (call.method) {
-            "play" -> {
-                play()
-                result.success(null)
-            }
-            "pause" -> {
-                pause()
-                result.success(null)
-            }
-            "stop" -> {
-                stop()
-                result.success(null)
-            }
-            "previous" -> {
-                previous()
-                result.success(null)
-            }
-            "next" -> {
-                next()
-                result.success(null)
-            }
-            "getActiveMediaSessions" -> {
-                activeSessions = mMediaSessionListener?.getActiveSessions(mContext!!)
-                mMediaSessionListener?.activeSessions = activeSessions
-                mMediaSessionListener?.sendSessionsInfoToFlutter(activeSessions)
-                result.success(null)
-            }
-            "setCurrentMediaSession" -> {
-                val arguments = call.arguments
-                val token = (arguments as Map<*, *>)["sessionToken"]
-                if (token == null) {
-                    currentMediaSession?.unregisterCallback(mCallback)
-                    currentMediaSession = null
+        try {
+            when (call.method) {
+                "play" -> {
+                    play()
                     result.success(null)
-                } else {
-                    var resultString: String? = null
-                    mMediaSessionListener?.let {
-                        currentMediaSession?.unregisterCallback(mCallback)
-                        currentMediaSession = it.getMediaSessionByToken(token as String)
-                        if (currentMediaSession != null) {
-                            setupMediaController(currentMediaSession!!)
-                        }
-                        resultString = currentMediaSession?.sessionToken.toString()
-                        currentMediaSession?.let { session ->
-                            val playState: MutableMap<String, Any>? = fetchPlayState(session)
-                            if (playState != null) {
-                                it.mEventSink?.success(playState)
-                            }
-                        }
+                }
+                "pause" -> {
+                    pause()
+                    result.success(null)
+                }
+                "stop" -> {
+                    stop()
+                    result.success(null)
+                }
+                "previous" -> {
+                    previous()
+                    result.success(null)
+                }
+                "next" -> {
+                    next()
+                    result.success(null)
+                }
+                "getActiveMediaSessions" -> {
+                    try {
+                        activeSessions = mMediaSessionListener?.getActiveSessions(mContext!!)
+                        mMediaSessionListener?.activeSessions = activeSessions
+                        mMediaSessionListener?.sendSessionsInfoToFlutter(activeSessions)
+                        result.success(null)
+                    } catch (e: SecurityException) {
+                        result.error("permission_denied", "Notification listener access not granted", null)
+                    } catch (e: Exception) {
+                        result.error("internal_error", "Failed to get active sessions: ${e.message}", null)
                     }
-
-                    result.success(resultString)
+                }
+                "setCurrentMediaSession" -> {
+                    try {
+                        val arguments = call.arguments
+                        if (arguments !is Map<*, *>) {
+                            result.error("invalid_argument", "Arguments must be a map", null)
+                            return
+                        }
+                        
+                        val token = arguments["sessionToken"]
+                        if (token == null) {
+                            currentMediaSession?.unregisterCallback(mCallback)
+                            currentMediaSession = null
+                            result.success(null)
+                        } else {
+                            if (token !is String || token.isEmpty()) {
+                                result.error("invalid_argument", "Session token must be a non-empty string", null)
+                                return
+                            }
+                            
+                            var resultString: String? = null
+                            mMediaSessionListener?.let {
+                                currentMediaSession?.unregisterCallback(mCallback)
+                                currentMediaSession = it.getMediaSessionByToken(token)
+                                if (currentMediaSession != null) {
+                                    setupMediaController(currentMediaSession!!)
+                                } else {
+                                    result.error("invalid_argument", "Invalid session token", null)
+                                    return
+                                }
+                                resultString = currentMediaSession?.sessionToken.toString()
+                                currentMediaSession?.let { session ->
+                                    val playState: MutableMap<String, Any>? = fetchPlayState(session)
+                                    if (playState != null) {
+                                        it.mEventSink?.success(playState)
+                                    }
+                                }
+                            }
+                            result.success(resultString)
+                        }
+                    } catch (e: Exception) {
+                        result.error("internal_error", "Failed to set media session: ${e.message}", null)
+                    }
+                }
+                else -> {
+                    result.notImplemented()
                 }
             }
-            else -> {
-                result.notImplemented()
-            }
+        } catch (e: IllegalStateException) {
+            result.error("player_error", e.message, null)
+        } catch (e: SecurityException) {
+            result.error("permission_denied", e.message, null)
+        } catch (e: Exception) {
+            result.error("internal_error", "Unexpected error: ${e.message}", null)
         }
     }
 
     override fun onDetachedFromEngine(@NonNull binding: FlutterPlugin.FlutterPluginBinding) {
-        methodChannel.setMethodCallHandler(null)
-        eventChannel.setStreamHandler(null)
+        try {
+            // Clean up media session callback
+            currentMediaSession?.unregisterCallback(mCallback)
+            currentMediaSession = null
+            
+            // Stop listening for session changes
+            mMediaSessionListener?.onStop()
+            
+            // Clean up channels
+            methodChannel.setMethodCallHandler(null)
+            eventChannel.setStreamHandler(null)
+            
+            if (DEBUG) {
+                Log.d(TAG, "MediaControllerPlugin detached and cleaned up")
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Error during cleanup", e)
+        }
     }
 
     private fun play() {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
-            currentMediaSession?.transportControls?.play()
+        try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+                if (currentMediaSession == null) {
+                    throw IllegalStateException("No media session selected")
+                }
+                currentMediaSession?.transportControls?.play()
+                if (DEBUG) {
+                    Log.d(TAG, "Play command sent")
+                }
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Error sending play command", e)
+            throw e
         }
     }
 
     private fun pause() {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
-            currentMediaSession?.transportControls?.pause()
+        try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+                if (currentMediaSession == null) {
+                    throw IllegalStateException("No media session selected")
+                }
+                currentMediaSession?.transportControls?.pause()
+                if (DEBUG) {
+                    Log.d(TAG, "Pause command sent")
+                }
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Error sending pause command", e)
+            throw e
         }
     }
 
     private fun stop() {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
-            currentMediaSession?.transportControls?.stop()
+        try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+                if (currentMediaSession == null) {
+                    throw IllegalStateException("No media session selected")
+                }
+                currentMediaSession?.transportControls?.stop()
+                if (DEBUG) {
+                    Log.d(TAG, "Stop command sent")
+                }
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Error sending stop command", e)
+            throw e
         }
     }
+    
     private fun previous() {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
-            currentMediaSession?.transportControls?.skipToPrevious()
+        try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+                if (currentMediaSession == null) {
+                    throw IllegalStateException("No media session selected")
+                }
+                currentMediaSession?.transportControls?.skipToPrevious()
+                if (DEBUG) {
+                    Log.d(TAG, "Previous command sent")
+                }
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Error sending previous command", e)
+            throw e
         }
     }
 
     private fun next() {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
-            currentMediaSession?.transportControls?.skipToNext()
+        try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+                if (currentMediaSession == null) {
+                    throw IllegalStateException("No media session selected")
+                }
+                currentMediaSession?.transportControls?.skipToNext()
+                if (DEBUG) {
+                    Log.d(TAG, "Next command sent")
+                }
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Error sending next command", e)
+            throw e
         }
     }
 
