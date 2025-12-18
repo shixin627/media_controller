@@ -26,6 +26,7 @@ import io.flutter.plugin.common.MethodChannel
 import io.flutter.plugin.common.MethodChannel.MethodCallHandler
 import io.flutter.plugin.common.MethodChannel.Result
 import java.util.*
+import kotlin.toString
 
 
 /** MediaControllerPlugin */
@@ -328,33 +329,45 @@ class MediaControllerPlugin : FlutterPlugin, MethodCallHandler, EventChannel.Str
         var activeSessions: List<MediaController>? = null
 
         fun sendSessionsInfoToFlutter(sessions: List<MediaController>?, notifyChanged: Boolean = false) {
-            mEventSink?.let {
-                val sessionTokens = mutableListOf<String>()
-                val sessionPackages = mutableListOf<String>()
-                val sessionStates = mutableListOf<String>()
-                if (sessions != null) {
-                    for (session in sessions) {
-                        sessionTokens += session.sessionToken.toString()
-                        sessionPackages += session.packageName.toString()
-                        val playbackState = session.playbackState
-                        sessionStates += if (playbackState != null) {
-                            MediaControllerPlugin.playbackStateToName(playbackState.state)
-                        } else {
-                            "STATE_NONE"
-                        }
-                    }
-                }
-                val sessionsInfo: MutableMap<String, Any> = HashMap()
+            val sink = mEventSink ?: return
 
-                if (notifyChanged) {
-                    sessionsInfo["notifyChanged"] = true
-                } else {
-                    sessionsInfo["sessions"] = sessionTokens
-                    sessionsInfo["packages"] = sessionPackages
-                    sessionsInfo["states"] = sessionStates
-                }
-                it.success(sessionsInfo)
+            // Lightweight event: only notify flag.
+            if (notifyChanged) {
+                val payload: MutableMap<String, Any> = HashMap()
+                payload["notifyChanged"] = true
+                sink.success(payload)
+                return
             }
+
+            val sessionTokens = mutableListOf<String>()
+            val sessionPackages = mutableListOf<String>()
+            val sessionStates = mutableListOf<String>()
+            val sessionTitles = mutableListOf<String>()
+
+            sessions?.forEach { session ->
+                sessionTokens += session.sessionToken.toString()
+                sessionPackages += session.packageName.toString()
+                sessionTitles += session.metadata?.getString(MediaMetadata.METADATA_KEY_TITLE)
+                    ?: "Unknown Title"
+                val playbackState = session.playbackState
+                sessionStates += if (playbackState != null) {
+                    MediaControllerPlugin.playbackStateToName(playbackState.state)
+                } else {
+                    "STATE_NONE"
+                }
+            }
+
+            // 2-layer structure: sessions -> List<Map<...>>
+            val inner: MutableMap<String, Any> = HashMap()
+            inner["tokens"] = sessionTokens
+            inner["packages"] = sessionPackages
+            inner["states"] = sessionStates
+            inner["titles"] = sessionTitles
+
+            val payload: MutableMap<String, Any> = HashMap()
+            payload["sessions"] = listOf(inner)
+
+            sink.success(payload)
         }
         private val mSessionsChangedListener =
             MediaSessionManager.OnActiveSessionsChangedListener { list: List<MediaController?>? ->
