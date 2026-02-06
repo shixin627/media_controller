@@ -57,6 +57,16 @@ class MethodChannelMediaController extends MediaControllerPlatform {
     await methodChannel.invokeMethod<void>('next');
   }
 
+  @override
+  Future<bool> isNotificationListenerEnabled() async {
+    return await methodChannel.invokeMethod<bool>('isNotificationListenerEnabled') ?? false;
+  }
+
+  @override
+  Future<bool> openNotificationListenerSettings() async {
+    return await methodChannel.invokeMethod<bool>('openNotificationListenerSettings') ?? false;
+  }
+
   Map<String, dynamic> convertMap(dynamic data) {
     return Map<String, dynamic>.from(data as Map<dynamic, dynamic>).cast<String, dynamic>();
   }

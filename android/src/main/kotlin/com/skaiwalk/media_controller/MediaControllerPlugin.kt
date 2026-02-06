@@ -5,6 +5,7 @@ import android.app.Activity
 import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
+import android.graphics.Bitmap
 import android.media.MediaMetadata
 import android.media.session.MediaController
 import android.media.session.MediaSessionManager
@@ -13,6 +14,7 @@ import android.os.Build
 import android.os.RemoteException
 import android.provider.Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS
 import android.text.TextUtils
+import android.util.Base64
 import android.util.Log
 import androidx.annotation.NonNull
 import androidx.annotation.RequiresApi
@@ -25,6 +27,7 @@ import io.flutter.plugin.common.MethodCall
 import io.flutter.plugin.common.MethodChannel
 import io.flutter.plugin.common.MethodChannel.MethodCallHandler
 import io.flutter.plugin.common.MethodChannel.Result
+import java.io.ByteArrayOutputStream
 import java.util.*
 import kotlin.toString
 
@@ -37,6 +40,21 @@ class MediaControllerPlugin : FlutterPlugin, MethodCallHandler, EventChannel.Str
         const val METHOD_CHANNEL_NAME = "flutter.io/media_controller/methodChannel"
         const val EVENT_CHANNEL_NAME = "flutter.io/media_controller/eventChannel"
         
+        private const val MAX_ART_SIZE = 300
+
+        fun bitmapToBase64(bitmap: Bitmap): String {
+            val scaled = if (bitmap.width > MAX_ART_SIZE || bitmap.height > MAX_ART_SIZE) {
+                val ratio = minOf(MAX_ART_SIZE.toFloat() / bitmap.width, MAX_ART_SIZE.toFloat() / bitmap.height)
+                Bitmap.createScaledBitmap(bitmap, (bitmap.width * ratio).toInt(), (bitmap.height * ratio).toInt(), true)
+            } else {
+                bitmap
+            }
+            val stream = ByteArrayOutputStream()
+            scaled.compress(Bitmap.CompressFormat.PNG, 100, stream)
+            val bytes = stream.toByteArray()
+            return Base64.encodeToString(bytes, Base64.NO_WRAP)
+        }
+
         fun playbackStateToName(playbackState: Int): String {
             return when (playbackState) {
                 PlaybackState.STATE_NONE -> "STATE_NONE"
@@ -59,6 +77,7 @@ class MediaControllerPlugin : FlutterPlugin, MethodCallHandler, EventChannel.Str
     private lateinit var methodChannel: MethodChannel
     private lateinit var eventChannel: EventChannel
     private var mContext: Context? = null
+    private var mActivity: Activity? = null
     private var currentMediaSession: MediaController? = null
     private var activeSessions: List<MediaController>? = null
 
@@ -146,6 +165,11 @@ class MediaControllerPlugin : FlutterPlugin, MethodCallHandler, EventChannel.Str
                 mediaMetadata.getString(MediaMetadata.METADATA_KEY_ALBUM)
             )
 
+            val albumArt = mediaMetadata.getBitmap(MediaMetadata.METADATA_KEY_ALBUM_ART)
+                ?: mediaMetadata.getBitmap(MediaMetadata.METADATA_KEY_ART)
+            if (albumArt != null) {
+                mediaInfos["AlbumArt"] = bitmapToBase64(albumArt)
+            }
         }
         return mediaInfos
     }
@@ -189,6 +213,18 @@ class MediaControllerPlugin : FlutterPlugin, MethodCallHandler, EventChannel.Str
             "next" -> {
                 next()
                 result.success(null)
+            }
+            "isNotificationListenerEnabled" -> {
+                result.success(NotificationListener.isEnabled(mContext!!))
+            }
+            "openNotificationListenerSettings" -> {
+                if (mActivity != null) {
+                    val intent = Intent(ACTION_NOTIFICATION_LISTENER_SETTINGS)
+                    mActivity!!.startActivity(intent)
+                    result.success(true)
+                } else {
+                    result.success(false)
+                }
             }
             "getActiveMediaSessions" -> {
                 activeSessions = mMediaSessionListener?.getActiveSessions(mContext!!)
@@ -311,16 +347,19 @@ class MediaControllerPlugin : FlutterPlugin, MethodCallHandler, EventChannel.Str
     }
 
     override fun onAttachedToActivity(binding: ActivityPluginBinding) {
-//        handleNotificationPermissions(binding.activity)
+        mActivity = binding.activity
     }
 
     override fun onDetachedFromActivityForConfigChanges() {
+        mActivity = null
     }
 
     override fun onReattachedToActivityForConfigChanges(binding: ActivityPluginBinding) {
+        mActivity = binding.activity
     }
 
     override fun onDetachedFromActivity() {
+        mActivity = null
     }
 
     @TargetApi(Build.VERSION_CODES.LOLLIPOP)
@@ -343,6 +382,7 @@ class MediaControllerPlugin : FlutterPlugin, MethodCallHandler, EventChannel.Str
             val sessionPackages = mutableListOf<String>()
             val sessionStates = mutableListOf<String>()
             val sessionTitles = mutableListOf<String>()
+            val sessionAlbumArts = mutableListOf<String>()
 
             sessions?.forEach { session ->
                 sessionTokens += session.sessionToken.toString()
@@ -355,6 +395,13 @@ class MediaControllerPlugin : FlutterPlugin, MethodCallHandler, EventChannel.Str
                 } else {
                     "STATE_NONE"
                 }
+                val albumArt = session.metadata?.getBitmap(MediaMetadata.METADATA_KEY_ALBUM_ART)
+                    ?: session.metadata?.getBitmap(MediaMetadata.METADATA_KEY_ART)
+                sessionAlbumArts += if (albumArt != null) {
+                    MediaControllerPlugin.bitmapToBase64(albumArt)
+                } else {
+                    ""
+                }
             }
 
             // 2-layer structure: sessions -> List<Map<...>>
@@ -363,6 +410,7 @@ class MediaControllerPlugin : FlutterPlugin, MethodCallHandler, EventChannel.Str
             inner["packages"] = sessionPackages
             inner["states"] = sessionStates
             inner["titles"] = sessionTitles
+            inner["albumArts"] = sessionAlbumArts
 
             val payload: MutableMap<String, Any> = HashMap()
             payload["sessions"] = listOf(inner)

@@ -30,6 +30,14 @@ class MediaController {
     return MediaControllerPlatform.instance.next();
   }
 
+  Future<bool> isNotificationListenerEnabled() {
+    return MediaControllerPlatform.instance.isNotificationListenerEnabled();
+  }
+
+  Future<bool> openNotificationListenerSettings() {
+    return MediaControllerPlatform.instance.openNotificationListenerSettings();
+  }
+
   Stream<Map<String, dynamic>>? get mediaStream =>
       MediaControllerPlatform.instance.mediaStream;
 }

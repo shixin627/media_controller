@@ -52,5 +52,13 @@ abstract class MediaControllerPlatform extends PlatformInterface {
     throw UnimplementedError('next() has not been implemented.');
   }
 
+  Future<bool> isNotificationListenerEnabled() {
+    throw UnimplementedError('isNotificationListenerEnabled() has not been implemented.');
+  }
+
+  Future<bool> openNotificationListenerSettings() {
+    throw UnimplementedError('openNotificationListenerSettings() has not been implemented.');
+  }
+
   Stream<Map<String, dynamic>>? get mediaStream;
 }
