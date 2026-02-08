@@ -73,7 +73,7 @@ class MethodChannelMediaController extends MediaControllerPlatform {
 
   @override
   Stream<Map<String, dynamic>>? get mediaStream {
-    if (Platform.isAndroid) {
+    if (Platform.isAndroid || Platform.isIOS || Platform.isMacOS || Platform.isWindows) {
       Stream<Map<String, dynamic>> stream = eventChannel
           .receiveBroadcastStream()
           .map((event) {

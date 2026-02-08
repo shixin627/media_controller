@@ -97,6 +97,11 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
     final albumArts = inner['albumArts'] != null
         ? List<String>.from(inner['albumArts'] as List)
         : <String>[];
+    debugPrint('Received sessions: $tokens');
+    debugPrint('Packages: $packages');
+    debugPrint('States: $states');
+    debugPrint('Titles: $titles');
+    debugPrint('Album Arts: $albumArts');
 
     setState(() {
       _sessions = List.generate(tokens.length, (i) {

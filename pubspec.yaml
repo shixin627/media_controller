@@ -45,6 +45,12 @@ flutter:
       android:
         package: com.skaiwalk.media_controller
         pluginClass: MediaControllerPlugin
+      ios:
+        pluginClass: MediaControllerPlugin
+      macos:
+        pluginClass: MediaControllerPlugin
+      windows:
+        pluginClass: MediaControllerPluginCApi
 
   # To add assets to your plugin package, add an assets section, like this:
   # assets:
