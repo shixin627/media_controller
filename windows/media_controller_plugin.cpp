@@ -94,12 +94,7 @@ void MediaControllerPlugin::RegisterWithRegistrar(
 }
 
 MediaControllerPlugin::MediaControllerPlugin() {
-  // Flutter already initializes COM as MTA. Use multi_threaded to match.
-  try {
-    winrt::init_apartment(winrt::apartment_type::multi_threaded);
-  } catch (...) {
-    // Already initialized, no-op.
-  }
+  // Flutter's runner already initializes COM on the main thread.
   try {
     session_manager_ = SessionManager::RequestAsync().get();
   } catch (...) {
