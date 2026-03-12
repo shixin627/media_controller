@@ -5,7 +5,9 @@
 #include <flutter/plugin_registrar_windows.h>
 #include <flutter/standard_method_codec.h>
 
+#include <future>
 #include <string>
+#include <thread>
 #include <vector>
 
 #include <winrt/Windows.Foundation.h>
@@ -21,6 +23,29 @@ using namespace winrt::Windows::Foundation;
 using flutter::EncodableMap;
 using flutter::EncodableValue;
 using flutter::EncodableList;
+
+// Run a callable on a background MTA thread and wait for the result.
+// This avoids calling .get() on WinRT async ops from Flutter's STA thread.
+template <typename F>
+static auto RunOnMtaThread(F &&func) -> decltype(func()) {
+  std::promise<decltype(func())> promise;
+  auto future = promise.get_future();
+  std::thread([&promise, &func]() {
+    winrt::init_apartment(winrt::apartment_type::multi_threaded);
+    try {
+      if constexpr (std::is_void_v<decltype(func())>) {
+        func();
+        promise.set_value();
+      } else {
+        promise.set_value(func());
+      }
+    } catch (...) {
+      promise.set_exception(std::current_exception());
+    }
+    winrt::uninit_apartment();
+  }).detach();
+  return future.get();
+}
 
 // Base64 encoding
 static const char kBase64Chars[] =
@@ -94,9 +119,10 @@ void MediaControllerPlugin::RegisterWithRegistrar(
 }
 
 MediaControllerPlugin::MediaControllerPlugin() {
-  // Flutter's runner already initializes COM on the main thread.
   try {
-    session_manager_ = SessionManager::RequestAsync().get();
+    session_manager_ = RunOnMtaThread([&]() {
+      return SessionManager::RequestAsync().get();
+    });
   } catch (...) {
     // WinRT not available or too old Windows version
   }
@@ -114,9 +140,6 @@ void MediaControllerPlugin::OnListen(
   if (session_manager_) {
     sessions_changed_token_ = session_manager_.SessionsChanged(
         [this](SessionManager const &, auto const &) {
-          try {
-            winrt::init_apartment(winrt::apartment_type::multi_threaded);
-          } catch (...) {}
           FetchAndSendSessionList();
         });
   }
@@ -183,31 +206,41 @@ void MediaControllerPlugin::HandleMethodCall(
 
 void MediaControllerPlugin::Play() {
   if (current_session_) {
-    try { current_session_.TryPlayAsync().get(); } catch (...) {}
+    try {
+      RunOnMtaThread([&]() { current_session_.TryPlayAsync().get(); });
+    } catch (...) {}
   }
 }
 
 void MediaControllerPlugin::Pause() {
   if (current_session_) {
-    try { current_session_.TryPauseAsync().get(); } catch (...) {}
+    try {
+      RunOnMtaThread([&]() { current_session_.TryPauseAsync().get(); });
+    } catch (...) {}
   }
 }
 
 void MediaControllerPlugin::Stop() {
   if (current_session_) {
-    try { current_session_.TryStopAsync().get(); } catch (...) {}
+    try {
+      RunOnMtaThread([&]() { current_session_.TryStopAsync().get(); });
+    } catch (...) {}
   }
 }
 
 void MediaControllerPlugin::Next() {
   if (current_session_) {
-    try { current_session_.TrySkipNextAsync().get(); } catch (...) {}
+    try {
+      RunOnMtaThread([&]() { current_session_.TrySkipNextAsync().get(); });
+    } catch (...) {}
   }
 }
 
 void MediaControllerPlugin::Previous() {
   if (current_session_) {
-    try { current_session_.TrySkipPreviousAsync().get(); } catch (...) {}
+    try {
+      RunOnMtaThread([&]() { current_session_.TrySkipPreviousAsync().get(); });
+    } catch (...) {}
   }
 }
 
@@ -238,7 +271,9 @@ void MediaControllerPlugin::FetchAndSendSessionList() {
       }
 
       try {
-        auto props = session.TryGetMediaPropertiesAsync().get();
+        auto props = RunOnMtaThread([&]() {
+          return session.TryGetMediaPropertiesAsync().get();
+        });
         auto title = WStringToString(std::wstring(props.Title()));
         titles.push_back(EncodableValue(title.empty() ? "Unknown Title" : title));
 
@@ -278,7 +313,9 @@ void MediaControllerPlugin::FetchAndSendCurrentMedia() {
   try {
     EncodableMap data;
 
-    auto props = current_session_.TryGetMediaPropertiesAsync().get();
+    auto props = RunOnMtaThread([&]() {
+      return current_session_.TryGetMediaPropertiesAsync().get();
+    });
     auto title = WStringToString(std::wstring(props.Title()));
     if (!title.empty()) data[EncodableValue("Title")] = EncodableValue(title);
 
@@ -333,16 +370,10 @@ void MediaControllerPlugin::RegisterSessionEvents() {
   try {
     media_properties_changed_token_ = current_session_.MediaPropertiesChanged(
         [this](Session const &, auto const &) {
-          try {
-            winrt::init_apartment(winrt::apartment_type::multi_threaded);
-          } catch (...) {}
           FetchAndSendCurrentMedia();
         });
     playback_info_changed_token_ = current_session_.PlaybackInfoChanged(
         [this](Session const &, auto const &) {
-          try {
-            winrt::init_apartment(winrt::apartment_type::multi_threaded);
-          } catch (...) {}
           FetchAndSendCurrentMedia();
         });
   } catch (...) {}
@@ -380,18 +411,20 @@ std::string MediaControllerPlugin::PlaybackStatusToString(
 std::string MediaControllerPlugin::ThumbnailToBase64(
     IRandomAccessStreamReference thumbnail) {
   try {
-    auto stream = thumbnail.OpenReadAsync().get();
-    auto size = static_cast<uint32_t>(stream.Size());
-    if (size == 0) return "";
+    return RunOnMtaThread([&]() -> std::string {
+      auto stream = thumbnail.OpenReadAsync().get();
+      auto size = static_cast<uint32_t>(stream.Size());
+      if (size == 0) return "";
 
-    auto buffer = winrt::Windows::Storage::Streams::Buffer(size);
-    stream.ReadAsync(buffer, size, InputStreamOptions::None).get();
+      auto buffer = winrt::Windows::Storage::Streams::Buffer(size);
+      stream.ReadAsync(buffer, size, InputStreamOptions::None).get();
 
-    auto reader = DataReader::FromBuffer(buffer);
-    std::vector<uint8_t> data(size);
-    reader.ReadBytes(data);
+      auto reader = DataReader::FromBuffer(buffer);
+      std::vector<uint8_t> data(size);
+      reader.ReadBytes(data);
 
-    return Base64Encode(data);
+      return Base64Encode(data);
+    });
   } catch (...) {
     return "";
   }
