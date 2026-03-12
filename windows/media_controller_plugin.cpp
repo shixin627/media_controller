@@ -94,7 +94,14 @@ void MediaControllerPlugin::RegisterWithRegistrar(
 }
 
 MediaControllerPlugin::MediaControllerPlugin() {
-  winrt::init_apartment(winrt::apartment_type::single_threaded);
+  // Flutter's Windows runner already initializes COM. We only need to ensure
+  // WinRT is usable. Use multi_threaded to be compatible with Flutter's
+  // existing COM state (calling single_threaded on an MTA thread fails).
+  try {
+    winrt::init_apartment(winrt::apartment_type::multi_threaded);
+  } catch (...) {
+    // Already initialized — that's fine.
+  }
   try {
     session_manager_ = SessionManager::RequestAsync().get();
   } catch (...) {
@@ -114,6 +121,9 @@ void MediaControllerPlugin::OnListen(
   if (session_manager_) {
     sessions_changed_token_ = session_manager_.SessionsChanged(
         [this](SessionManager const &, auto const &) {
+          try {
+            winrt::init_apartment(winrt::apartment_type::multi_threaded);
+          } catch (...) {}
           FetchAndSendSessionList();
         });
   }
@@ -330,10 +340,16 @@ void MediaControllerPlugin::RegisterSessionEvents() {
   try {
     media_properties_changed_token_ = current_session_.MediaPropertiesChanged(
         [this](Session const &, auto const &) {
+          try {
+            winrt::init_apartment(winrt::apartment_type::multi_threaded);
+          } catch (...) {}
           FetchAndSendCurrentMedia();
         });
     playback_info_changed_token_ = current_session_.PlaybackInfoChanged(
         [this](Session const &, auto const &) {
+          try {
+            winrt::init_apartment(winrt::apartment_type::multi_threaded);
+          } catch (...) {}
           FetchAndSendCurrentMedia();
         });
   } catch (...) {}
