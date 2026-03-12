@@ -94,13 +94,11 @@ void MediaControllerPlugin::RegisterWithRegistrar(
 }
 
 MediaControllerPlugin::MediaControllerPlugin() {
-  // Flutter's Windows runner already initializes COM. We only need to ensure
-  // WinRT is usable. Use multi_threaded to be compatible with Flutter's
-  // existing COM state (calling single_threaded on an MTA thread fails).
+  // Flutter already initializes COM as MTA. Use multi_threaded to match.
   try {
     winrt::init_apartment(winrt::apartment_type::multi_threaded);
   } catch (...) {
-    // Already initialized — that's fine.
+    // Already initialized, no-op.
   }
   try {
     session_manager_ = SessionManager::RequestAsync().get();
