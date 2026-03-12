@@ -1,6 +1,7 @@
 #ifndef FLUTTER_PLUGIN_MEDIA_CONTROLLER_PLUGIN_H_
 #define FLUTTER_PLUGIN_MEDIA_CONTROLLER_PLUGIN_H_
 
+#include <flutter/encodable_value.h>
 #include <flutter/event_channel.h>
 #include <flutter/method_channel.h>
 #include <flutter/plugin_registrar_windows.h>
